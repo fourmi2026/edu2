@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다온 교육일지</title>
+<style>
+:root{--ink:#263445;--muted:#687789;--line:#dce3eb;--paper:#fff;--bg:#f3f6fa;--accent:#526f9e;--soft:#edf2f9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;font-size:17px}
+.wrap{max-width:960px;margin:30px auto;padding:0 18px 40px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.head h1{font-size:30px;margin:0}.sub{font-size:15px;color:var(--muted);margin-top:6px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:22px;margin:16px 0;box-shadow:0 3px 12px #23334a08}
+h2{font-size:21px;margin:0 0 16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+label{display:block;font-size:16px;font-weight:750;margin:0 0 7px}
+input,textarea,select{width:100%;font:inherit;font-size:17px;color:var(--ink);background:#fff;border:1px solid #cfd8e3;border-radius:9px;padding:12px}
+textarea{min-height:100px;resize:vertical}
+button{font:inherit;font-size:15px;font-weight:750;border:1px solid #cbd5e1;background:#fff;color:var(--ink);border-radius:9px;padding:11px 15px;cursor:pointer}
+button:hover{background:#f2f5f9}.primary{background:var(--accent);border-color:var(--accent);color:white}.primary:hover{background:#405d89}
+.muted{font-size:14px;color:var(--muted);line-height:1.6}.student-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.student{border:2px solid var(--student-color,#9aabc0);border-radius:12px;padding:14px;background:var(--student-bg,#fbfcfe)}
+.student:nth-child(6n+1){--student-color:#e59a9a;--student-bg:#fff7f7}
+.student:nth-child(6n+2){--student-color:#e4b66c;--student-bg:#fffbf2}
+.student:nth-child(6n+3){--student-color:#8dbb91;--student-bg:#f5fbf5}
+.student:nth-child(6n+4){--student-color:#83b5d6;--student-bg:#f3f9fd}
+.student:nth-child(6n+5){--student-color:#aa98d2;--student-bg:#f8f5fd}
+.student:nth-child(6n+6){--student-color:#d99abd;--student-bg:#fff6fb}
+.student-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}.student-top b{font-size:16px;white-space:nowrap}.student-top input{font-weight:700}
+.student textarea{min-height:90px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.status{font-size:14px;color:var(--muted);margin-top:10px;min-height:20px}
+@media(max-width:620px){.student-grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.row>*{flex-basis:100%}.card{padding:15px}}
+@media print{@page{margin:14mm}body{background:white;font-size:15px}.wrap{max-width:none;margin:0;padding:0}.card{box-shadow:none;border:1px solid #bbb;break-inside:avoid}.noprint{display:none!important}input,textarea{border:0!important;padding:3px!important}textarea{min-height:45px}.head h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="head">
+ <div><h1>다온 교육일지</h1></div>
+ 
+</header>
+
+<section class="card noprint">
+ <h2>① 학생 명단 관리</h2>
+ 
+ <div class="student-grid" id="roster"></div>
+ <div class="actions"><button class="primary" id="saveRoster">학생 명단 저장</button></div>
+ <div class="status" id="rosterStatus" aria-live="polite"></div>
+</section>
+
+<section class="card">
+ <h2>② 일일 교육 기록</h2>
+ <div style="max-width:260px;margin-bottom:14px"><label for="date">교육 날짜</label><input type="date" id="date"></div>
+ <div style="margin-bottom:14px"><label for="activity">주요 교육 활동</label><textarea id="activity" placeholder="예: 그림책 읽기, 감정 표현하기, 한글 낱말 읽기 등"></textarea></div>
+ <div><label for="classNote">학급 전체 특이사항</label><textarea id="classNote" placeholder="학급 전체 생활, 행사, 안전 및 기타 특이사항"></textarea></div>
+</section>
+
+<section class="card">
+ <h2>③ 학생별 기록</h2>
+ 
+ <div class="student-grid" id="studentRecords"></div>
+</section>
+
+<section class="card noprint">
+ <h2>④ 기록 관리</h2>
+ <div class="actions">
+  <button class="primary" id="saveRecord">교육일지 저장</button>
+  <button id="newRecord">새 기록</button>
+  <button id="printRecord">인쇄하기</button>
+  <button id="exportBackup">백업 파일 내보내기</button>
+ </div>
+ <div style="margin-top:17px"><label for="savedDates">저장된 교육일지</label>
+  <div class="row"><select id="savedDates"><option value="">날짜 선택</option></select><button id="loadRecord" style="flex:0 0 auto">불러오기</button><button id="deleteRecord" style="flex:0 0 auto">삭제</button></div>
+ </div>
+ <div class="status" id="recordStatus" aria-live="polite"></div>
+ 
+</section>
+</div>
+<script>
+(()=> {
+ const $=id=>document.getElementById(id);
+ const ROSTER_KEY='specialDiaryRoster_v1', RECORD_KEY='specialDiaryRecords_v1';
+ const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+ $('date').value=today();
+ const read=(key,def)=>{try{return JSON.parse(localStorage.getItem(key))??def}catch(e){return def}};
+ let roster=read(ROSTER_KEY,['','','','','','']);
+ function renderRoster(){
+  $('roster').innerHTML='';
+  for(let i=0;i<6;i++){
+   const div=document.createElement('div');div.className='student';
+   div.innerHTML=`<label for="roster${i}">학생 ${i+1}</label><input id="roster${i}" maxlength="30" placeholder="학생 ${i+1} 이름">`;
+   $('roster').appendChild(div);$('roster'+i).value=roster[i]||'';
+  }
+ }
+ function renderStudents(data=[]){
+  $('studentRecords').innerHTML='';
+  for(let i=0;i<6;i++){
+   const div=document.createElement('div');div.className='student';
+   const name=roster[i]||`학생 ${i+1}`;
+   div.innerHTML=`<div class="student-top"><b>학생 ${i+1}</b><input id="recordName${i}" aria-label="학생 ${i+1} 이름" readonly></div><textarea id="studentNote${i}" placeholder="학습, 행동, 생활 및 개별 특이사항"></textarea>`;
+   $('studentRecords').appendChild(div);
+   $('recordName'+i).value=name;
+   $('studentNote'+i).value=data[i]||'';
+  }
+ }
+ function records(){return read(RECORD_KEY,{})}
+ function refreshDates(selected=''){
+  const all=records();$('savedDates').innerHTML='<option value="">날짜 선택</option>';
+  Object.keys(all).sort().reverse().forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;$('savedDates').appendChild(o)});
+  $('savedDates').value=selected;
+ }
+ function saveRoster(){
+  roster=Array.from({length:6},(_,i)=>$('roster'+i).value.trim());
+  try{localStorage.setItem(ROSTER_KEY,JSON.stringify(roster));renderStudents();$('rosterStatus').textContent='학생 명단을 저장했습니다. 교육일지에 새 이름이 자동으로 표시됩니다.'}
+  catch(e){$('rosterStatus').textContent='명단 저장에 실패했습니다. 브라우저 저장 설정을 확인해 주세요.'}
+ }
+ function current(){
+  return {date:$('date').value,activity:$('activity').value,classNote:$('classNote').value,studentNotes:Array.from({length:6},(_,i)=>$('studentNote'+i).value)};
+ }
+ function clearForm(){
+  $('date').value=today();$('activity').value='';$('classNote').value='';renderStudents();$('recordStatus').textContent='새 기록을 작성하세요.';
+ }
+ $('saveRoster').addEventListener('click',saveRoster);
+ $('saveRecord').addEventListener('click',()=>{
+  const d=current();if(!d.date){$('recordStatus').textContent='날짜를 선택해 주세요.';return}
+  const all=records();all[d.date]=d;
+  try{localStorage.setItem(RECORD_KEY,JSON.stringify(all));refreshDates(d.date);$('recordStatus').textContent=d.date+' 교육일지를 저장했습니다.'}
+  catch(e){$('recordStatus').textContent='저장 공간이 부족합니다. 백업 후 다시 시도해 주세요.'}
+ });
+ $('loadRecord').addEventListener('click',()=>{
+  const d=$('savedDates').value,entry=records()[d];
+  if(!entry){$('recordStatus').textContent='불러올 날짜를 선택해 주세요.';return}
+  $('date').value=entry.date;$('activity').value=entry.activity||'';$('classNote').value=entry.classNote||'';renderStudents(entry.studentNotes||[]);
+  $('recordStatus').textContent=d+' 기록을 불러왔습니다.';
+ });
+ $('newRecord').addEventListener('click',()=>{if(confirm('새 기록을 작성할까요? 저장하지 않은 내용은 사라집니다.'))clearForm()});
+ $('deleteRecord').addEventListener('click',()=>{
+  const d=$('savedDates').value;if(!d){$('recordStatus').textContent='삭제할 날짜를 선택해 주세요.';return}
+  if(!confirm(d+' 기록을 삭제할까요?'))return;
+  const all=records();delete all[d];localStorage.setItem(RECORD_KEY,JSON.stringify(all));refreshDates();$('recordStatus').textContent='선택한 기록을 삭제했습니다.';
+ });
+ $('printRecord').addEventListener('click',()=>window.print());
+ $('exportBackup').addEventListener('click',()=>{
+  const backup={roster:read(ROSTER_KEY,['','','','','','']),records:records()};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='특수학급_교육일지_백업.json';a.click();URL.revokeObjectURL(url);
+  $('recordStatus').textContent='명단과 전체 기록을 백업 파일로 내보냈습니다.';
+ });
+ renderRoster();renderStudents();refreshDates();
+})();
+</script>
+</body>
+</html>
